@@ -42,6 +42,11 @@ RUN git clone https://github.com/open-mpi/orcm.git && \
 
 ADD orcm-site.xml /opt/open-rcm/etc/orcm-site.xml
 
+RUN yum localinstall -y http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm && \
+    yum install -y sudo
+
+RUN perl -pi -e "s:Defaults    requiretty:#Defaults    requiretty:" /etc/sudoers
+
 RUN yum localinstall -y http://yum.postgresql.org/9.3/redhat/rhel-6-x86_64/pgdg-centos93-9.3-1.noarch.rpm && \
     yum install -y postgresql93-server postgresql93-odbc && \
     /etc/init.d/postgresql-9.3 initdb
