@@ -520,7 +520,7 @@
 
 <orcm-aggregators>
   <nodes>
-    <value>master</value>
+    <value>agg01</value>
   </nodes>
   <port>
     <value>55805</value>
