@@ -56,7 +56,7 @@ EXPOSE 53 55805 55820 5432
 RUN perl -pi -e "s:<Path to the PostgreSQL ODBC driver>:$(rpm -ql postgresql93-odbc | grep psqlodbc.so):" orcm/contrib/database/psql_odbc_driver.ini && \
     odbcinst -i -d -f orcm/contrib/database/psql_odbc_driver.ini && \
     perl -pi -e "s:<Name of the PostgreSQL driver>:$(rpm -ql postgresql93-odbc | grep psqlodbc.so):" orcm/contrib/database/orcmdb_psql.ini && \
-    perl -pi -e "s:<Name or IP address of the database server>:localhost:" orcm/contrib/database/orcmdb_psql.ini && \
+    perl -pi -e "s:<Name or IP address of the database server>:db:" orcm/contrib/database/orcmdb_psql.ini && \
     odbcinst -i -s -f orcm/contrib/database/orcmdb_psql.ini -h
 
 ADD pg_hba.conf /var/lib/pgsql/9.3/data/pg_hba.conf
