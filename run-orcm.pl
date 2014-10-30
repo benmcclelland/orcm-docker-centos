@@ -59,33 +59,31 @@ if ($opt_clean) {
 
 if ($opt_dbcli) {
     print "$docker run -it --rm --link db:db $image psql -U orcmuser -d orcmdb -h db\n";
+    system ($docker, "run", "-i", "-t", "--rm", "--link", "db:db", $image, "psql", "-U", "orcmuser", "-d", "orcmdb", "-h", "db");
     exit;
 }
 
-# refresh image
-@args = ($docker, "pull", $image);
-if($opt_dryrun) {
-    print "@args \n";
-} else {
-    system(@args) == 0
-        or die "refresh failed";
-}
-
 # start db
-my $pgcmd = "sudo -u postgres /usr/pgsql-9.3/bin/postmaster -p 5432 -D /var/lib/pgsql/9.3/data";
-my @dockerdb = ($docker, "run", "-d", "--name", "db", "-h", "db", $image);
-@args = (@dockerdb, split(" ", $pgcmd));
+if (!$opt_nodb) {
+    my $pgcmd = "sudo -u postgres /usr/pgsql-9.3/bin/postmaster -p 5432 -D /var/lib/pgsql/9.3/data";
+    my @dockerdb = ($docker, "run", "-d", "--name", "db", "-h", "db", $image);
+    @args = (@dockerdb, split(" ", $pgcmd));
 
-if($opt_dryrun) {
-    print "@args \n";
-} else {
-    system(@args) == 0
-        or die "start db failed";
+    if($opt_dryrun) {
+        print "@args \n";
+    } else {
+        system(@args) == 0
+            or die "start db failed";
+    }
 }
 
 # start scheduler
 my $scdcmd = "/opt/open-rcm/bin/orcmsched";
-my @dockerscd = ($docker, "run", "-d", "--name", "master", "-h", "master", "--link", "db:db", $image);
+if ($opt_nodb) {
+    my @dockerscd = ($docker, "run", "-d", "--name", "master", "-h", "master", $image);
+} else {
+    my @dockerscd = ($docker, "run", "-d", "--name", "master", "-h", "master", "--link", "db:db", $image);
+}
 @args = (@dockerscd, split(" ", $scdcmd));
 
 if($opt_dryrun) {
@@ -96,8 +94,13 @@ if($opt_dryrun) {
 }
 
 # start aggregator
-my $aggcmd = "/opt/open-rcm/bin/orcmd -mca db_odbc_dsn orcmdb_psql -mca db_odbc_user orcmuser:orcmpassword -mca db_odbc_table data_sample -mca sensor heartbeat,sigar";
-my @dockeragg = ($docker, "run", "-d", "--name", "agg01", "-h", "agg01", "--link", "db:db", "--link", "master:master", $image);
+if($opt_nodb) {
+    my $aggcmd = "/opt/open-rcm/bin/orcmd -mca sensor heartbeat";
+    my @dockeragg = ($docker, "run", "-d", "--name", "agg01", "-h", "agg01", "--link", "master:master", $image);
+} else {
+    my $aggcmd = "/opt/open-rcm/bin/orcmd -mca db_odbc_dsn orcmdb_psql -mca db_odbc_user orcmuser:orcmpassword -mca db_odbc_table data_sample -mca sensor heartbeat,sigar";
+    my @dockeragg = ($docker, "run", "-d", "--name", "agg01", "-h", "agg01", "--link", "db:db", "--link", "master:master", $image);
+}
 @args = (@dockeragg, split(" ", $aggcmd));
 
 if($opt_dryrun) {
@@ -107,14 +110,17 @@ if($opt_dryrun) {
         or die "start aggregator failed";
 }
 
-# start nodes
 if ($nodes) {
     my $nodecmd;
     my @dockernode;
     my $node;
     for (my $i = 1; $i <= $nodes; $i++) {
         $node = sprintf "node%03d", $i;
-        $nodecmd = "/opt/open-rcm/bin/orcmd -mca sensor heartbeat,sigar";
+        if($opt_nodb) {
+            $nodecmd = "/opt/open-rcm/bin/orcmd -mca sensor heartbeat";
+        } else {
+            $nodecmd = "/opt/open-rcm/bin/orcmd -mca sensor heartbeat,sigar";
+        }
         @dockernode = ($docker, "run", "-d", "--name", $node, "-h", $node, "--link", "agg01:agg01", $image);
         @args = (@dockernode, split(" ", $nodecmd));
 
@@ -122,7 +128,7 @@ if ($nodes) {
             print "@args \n";
         } else {
             system(@args) == 0
-                or die "start node failed";
+                or die "start aggregator failed";
         }
     }
 }
