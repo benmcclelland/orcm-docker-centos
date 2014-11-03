@@ -78,11 +78,12 @@ if (!$opt_nodb) {
 }
 
 # start scheduler
+my @dockerscd;
 my $scdcmd = "/opt/open-rcm/bin/orcmsched";
 if ($opt_nodb) {
-    my @dockerscd = ($docker, "run", "-d", "--name", "master", "-h", "master", $image);
+    @dockerscd = ($docker, "run", "-d", "--name", "master", "-h", "master", $image);
 } else {
-    my @dockerscd = ($docker, "run", "-d", "--name", "master", "-h", "master", "--link", "db:db", $image);
+    @dockerscd = ($docker, "run", "-d", "--name", "master", "-h", "master", "--link", "db:db", $image);
 }
 @args = (@dockerscd, split(" ", $scdcmd));
 
@@ -94,12 +95,15 @@ if($opt_dryrun) {
 }
 
 # start aggregator
+my $aggcmd;
+my @dockeragg;
+
 if($opt_nodb) {
-    my $aggcmd = "/opt/open-rcm/bin/orcmd -mca sensor heartbeat";
-    my @dockeragg = ($docker, "run", "-d", "--name", "agg01", "-h", "agg01", "--link", "master:master", $image);
+    $aggcmd = "/opt/open-rcm/bin/orcmd -mca sensor heartbeat";
+    @dockeragg = ($docker, "run", "-d", "--name", "agg01", "-h", "agg01", "--link", "master:master", $image);
 } else {
-    my $aggcmd = "/opt/open-rcm/bin/orcmd -mca db_odbc_dsn orcmdb_psql -mca db_odbc_user orcmuser:orcmpassword -mca db_odbc_table data_sample -mca sensor heartbeat,sigar";
-    my @dockeragg = ($docker, "run", "-d", "--name", "agg01", "-h", "agg01", "--link", "db:db", "--link", "master:master", $image);
+    $aggcmd = "/opt/open-rcm/bin/orcmd -mca db_odbc_dsn orcmdb_psql -mca db_odbc_user orcmuser:orcmpassword -mca db_odbc_table data_sample -mca sensor heartbeat,sigar";
+    @dockeragg = ($docker, "run", "-d", "--name", "agg01", "-h", "agg01", "--link", "db:db", "--link", "master:master", $image);
 }
 @args = (@dockeragg, split(" ", $aggcmd));
 
