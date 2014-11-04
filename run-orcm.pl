@@ -10,7 +10,7 @@ use Pod::Usage;
 use POSIX;
 
 our($conf, $image, $nodes);
-our($opt_nodb, $opt_clean, $opt_dryrun, $opt_dbcli, $opt_help);
+our($opt_nodb, $opt_clean, $opt_dryrun, $opt_dbcli, $opt_help, $opt_shell);
 
 GetOptions(
     "conf:s"  => \$conf,
@@ -20,6 +20,7 @@ GetOptions(
     "dbcli"   => \$opt_dbcli,
     "clean"   => \$opt_clean,
     "dryrun"  => \$opt_dryrun,
+    "shell"   => \$opt_shell,
     "help"    => \$opt_help, "h" => \$opt_help
 );
 
@@ -57,9 +58,41 @@ if ($opt_clean) {
     exit;
 }
 
+# DB CLI
 if ($opt_dbcli) {
-    print "$docker run -it --rm --link db:db $image psql -U orcmuser -d orcmdb -h db\n";
-    system ($docker, "run", "-i", "-t", "--rm", "--link", "db:db", $image, "psql", "-U", "orcmuser", "-d", "orcmdb", "-h", "db");
+    my @dockerdbcli;
+    my $dbclicmd = "psql -U orcmuser -d orcmdb -h db";
+    if ($opt_nodb) {
+        die "No DB CLI available with --nodb option!\n";
+    } else {
+        @dockerdbcli = ($docker, "run", "-it", "--rm", "--link", "db:db", $image);
+    }
+    @args = (@dockerdbcli, split(" ", $dbclicmd));
+
+    if($opt_dryrun) {
+        print "@args \n";
+    } else {
+        system(@args);
+    }
+    exit;
+}
+
+# SHELL
+if ($opt_shell) {
+    my @dockershell;
+    my $shellcmd = "/bin/bash";
+    if ($opt_nodb) {
+        @dockershell = ($docker, "run", "-it", "--rm", "--link", "master:master", $image);
+    } else {
+        @dockershell = ($docker, "run", "-it", "--rm", "--link", "master:master", "--link", "db:db", $image);
+    }
+    @args = (@dockershell, split(" ", $shellcmd));
+
+    if($opt_dryrun) {
+        print "@args \n";
+    } else {
+        system(@args);
+    }
     exit;
 }
 
@@ -99,10 +132,10 @@ my $aggcmd;
 my @dockeragg;
 
 if($opt_nodb) {
-    $aggcmd = "/opt/open-rcm/bin/orcmd -mca sensor heartbeat";
+    $aggcmd = "/opt/open-rcm/bin/orcmd -omca sensor heartbeat";
     @dockeragg = ($docker, "run", "-d", "--name", "agg01", "-h", "agg01", "--link", "master:master", $image);
 } else {
-    $aggcmd = "/opt/open-rcm/bin/orcmd -mca db_odbc_dsn orcmdb_psql -mca db_odbc_user orcmuser:orcmpassword -mca db_odbc_table data_sample -mca sensor heartbeat,sigar";
+    $aggcmd = "/opt/open-rcm/bin/orcmd -omca db_odbc_dsn orcmdb_psql -omca db_odbc_user orcmuser:orcmpassword -omca db_odbc_table data_sample -omca sensor heartbeat,sigar";
     @dockeragg = ($docker, "run", "-d", "--name", "agg01", "-h", "agg01", "--link", "db:db", "--link", "master:master", $image);
 }
 @args = (@dockeragg, split(" ", $aggcmd));
@@ -121,9 +154,9 @@ if ($nodes) {
     for (my $i = 1; $i <= $nodes; $i++) {
         $node = sprintf "node%03d", $i;
         if($opt_nodb) {
-            $nodecmd = "/opt/open-rcm/bin/orcmd -mca sensor heartbeat";
+            $nodecmd = "/opt/open-rcm/bin/orcmd -omca sensor heartbeat";
         } else {
-            $nodecmd = "/opt/open-rcm/bin/orcmd -mca sensor heartbeat,sigar";
+            $nodecmd = "/opt/open-rcm/bin/orcmd -omca sensor heartbeat,sigar";
         }
         @dockernode = ($docker, "run", "-d", "--name", $node, "-h", $node, "--link", "agg01:agg01", $image);
         @args = (@dockernode, split(" ", $nodecmd));
