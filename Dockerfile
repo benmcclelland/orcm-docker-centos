@@ -25,7 +25,7 @@ RUN wget http://ftp.gnu.org/gnu/libtool/libtool-2.4.2.tar.xz && \
     ./configure --prefix=/usr/local && make && make install && \
     cd .. && rm -rf libtool-2.4.2*
 
-RUN wget http://ipmiutil.sourceforge.net/FILES/ipmiutil-2.9.4-1.src.rpm && \
+RUN wget http://ipmiutil.sourceforge.net/FILES/archive/ipmiutil-2.9.4-1.src.rpm && \
     rpmbuild --rebuild ipmiutil-2.9.4-1.src.rpm && \
     rm -f ipmiutil-2.9.4* && \
     yum -y localinstall /root/rpmbuild/RPMS/x86_64/ipmiutil-2.9.4-1.el6.x86_64.rpm \
