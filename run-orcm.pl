@@ -3,14 +3,10 @@
 use strict;
 use warnings;
 use Getopt::Long;
-use File::Spec;
-use File::Path ();
-use File::Copy ();
 use Pod::Usage;
-use POSIX;
 
 our($conf, $image, $nodes);
-our($opt_nodb, $opt_clean, $opt_dryrun, $opt_dbcli, $opt_help, $opt_shell);
+our($opt_nodb, $opt_clean, $opt_dryrun, $opt_dbcli, $opt_help, $opt_shell, $opt_nopull);
 
 GetOptions(
     "conf:s"  => \$conf,
@@ -21,11 +17,12 @@ GetOptions(
     "clean"   => \$opt_clean,
     "dryrun"  => \$opt_dryrun,
     "shell"   => \$opt_shell,
+    "nopull"  => \$opt_nopull,
     "help"    => \$opt_help, "h" => \$opt_help
 );
 
 if ($opt_help) {
-    pod2usage();
+    pod2usage(-verbose => 1) && exit;
 }
 
 # defaults
@@ -57,6 +54,18 @@ if ($opt_clean) {
     open(STDERR, ">&", $stderr) or do { print "Can't restore STDERR: $!\n"; exit; };
     exit;
 }
+
+# Pull latest image
+if (!$opt_nopull) {
+    my $pullcmd = "$docker pull $image";
+    @args = split(" ", $pullcmd);
+    if($opt_dryrun) {
+        print "@args \n";
+    } else {
+        system(@args);
+    }
+}
+
 
 # DB CLI
 if ($opt_dbcli) {
@@ -158,7 +167,11 @@ if ($nodes) {
         } else {
             $nodecmd = "/opt/open-rcm/bin/orcmd -omca sensor heartbeat,sigar";
         }
-        @dockernode = ($docker, "run", "-d", "--name", $node, "-h", $node, "--link", "agg01:agg01", $image);
+        if ($i == 1) {
+            @dockernode = ($docker, "run", "-d", "--name", $node, "-h", $node, "--link", "agg01:agg01", $image);
+        } else {
+            @dockernode = ($docker, "run", "-d", "--name", $node, "-h", $node, "--link", "agg01:agg01", "--link", "node001:node001", $image);
+        }
         @args = (@dockernode, split(" ", $nodecmd));
 
         if($opt_dryrun) {
@@ -169,3 +182,31 @@ if ($nodes) {
         }
     }
 }
+
+=head1 NAME
+
+ run-orcm.pl
+
+=head1 SYNOPSIS
+
+ run-orcm.pl [options]
+
+=head1 DESCRIPTION
+
+Convenience script for launching docker based orcm cluster
+optionally launch db, dbcli, and shell
+
+=head1 OPTIONS
+
+ --conf      specifcy orcm-site.xml to bind into docker container
+ --image     specify docker image
+ --nodes [#] how many compute node containers to launch
+ --nodb      disable database and db options
+ --dbcli     run a container with the psql shell and connect to db
+ --clean     stop and remove *ALL* containers
+ --dryrun    only print commands that would be run, don't execute
+ --shell     launch a container with a shell prompt
+ --nopull    dont pull image
+ --help|-h   this help
+
+=cut
