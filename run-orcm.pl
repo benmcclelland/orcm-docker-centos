@@ -26,7 +26,6 @@ if ($opt_help) {
 }
 
 # defaults
-$conf  ||= "/var/tmp/orcm-site.xml";
 $image ||= "benmcclelland/orcm-centos";
 our $docker = "/usr/bin/docker";
 my @args;
@@ -86,15 +85,21 @@ if ($opt_dbcli) {
     exit;
 }
 
+my @xmlconf;
+if ($conf) {
+    @xmlconf = ("-v", "$conf:/opt/open-rcm/etc/orcm-site.xml");
+}
+
+my @dbconf;
+if (!$opt_nodb) {
+    @dbconf = ("--link", "db:db");
+}
+
 # SHELL
 if ($opt_shell) {
     my @dockershell;
     my $shellcmd = "/bin/bash";
-    if ($opt_nodb) {
-        @dockershell = ($docker, "run", "-it", "--rm", "--link", "master:master", $image);
-    } else {
-        @dockershell = ($docker, "run", "-it", "--rm", "--link", "master:master", "--link", "db:db", $image);
-    }
+    @dockershell = ($docker, "run", "-it", "--rm", "--link", "master:master", @dbconf, @xmlconf, $image);
     @args = (@dockershell, split(" ", $shellcmd));
 
     if($opt_dryrun) {
@@ -122,11 +127,7 @@ if (!$opt_nodb) {
 # start scheduler
 my @dockerscd;
 my $scdcmd = "/opt/open-rcm/bin/orcmsched";
-if ($opt_nodb) {
-    @dockerscd = ($docker, "run", "-d", "--name", "master", "-h", "master", $image);
-} else {
-    @dockerscd = ($docker, "run", "-d", "--name", "master", "-h", "master", "--link", "db:db", $image);
-}
+@dockerscd = ($docker, "run", "-d", "--name", "master", "-h", "master", @dbconf, @xmlconf, $image);
 @args = (@dockerscd, split(" ", $scdcmd));
 
 if($opt_dryrun) {
@@ -142,11 +143,10 @@ my @dockeragg;
 
 if($opt_nodb) {
     $aggcmd = "/opt/open-rcm/bin/orcmd -omca sensor heartbeat";
-    @dockeragg = ($docker, "run", "-d", "--name", "agg01", "-h", "agg01", "--link", "master:master", $image);
 } else {
     $aggcmd = "/opt/open-rcm/bin/orcmd -omca db_odbc_dsn orcmdb_psql -omca db_odbc_user orcmuser:orcmpassword -omca db_odbc_table data_sample -omca sensor heartbeat,sigar";
-    @dockeragg = ($docker, "run", "-d", "--name", "agg01", "-h", "agg01", "--link", "db:db", "--link", "master:master", $image);
 }
+@dockeragg = ($docker, "run", "-d", "--name", "agg01", "-h", "agg01", @dbconf, "--link", "master:master", @xmlconf, $image);
 @args = (@dockeragg, split(" ", $aggcmd));
 
 if($opt_dryrun) {
@@ -168,9 +168,9 @@ if ($nodes) {
             $nodecmd = "/opt/open-rcm/bin/orcmd -omca sensor heartbeat,sigar";
         }
         if ($i == 1) {
-            @dockernode = ($docker, "run", "-d", "--name", $node, "-h", $node, "--link", "agg01:agg01", $image);
+            @dockernode = ($docker, "run", "-d", "--name", $node, "-h", $node, "--link", "agg01:agg01", @xmlconf, $image);
         } else {
-            @dockernode = ($docker, "run", "-d", "--name", $node, "-h", $node, "--link", "agg01:agg01", "--link", "node001:node001", $image);
+            @dockernode = ($docker, "run", "-d", "--name", $node, "-h", $node, "--link", "agg01:agg01", "--link", "node001:node001", @xmlconf, $image);
         }
         @args = (@dockernode, split(" ", $nodecmd));
 
