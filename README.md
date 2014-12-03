@@ -14,6 +14,14 @@ to run a 10 node orcm cluster:
 ```
 run-orcm.pl --nodes 10
 ```
+slightly more advanced options, bind our own orcm config into conatiners as well as a shared home directory and dont run the database:
+```
+run-orcm.pl --nodes 10 --conf /root/orcm-site.xml --nodb --home /home
+run-orcm.pl --nodes 10 --conf /root/orcm-site.xml --nodb --home /home --shell
+```
+see [https://github.com/open-mpi/orcm/wiki/5-Testing](https://github.com/open-mpi/orcm/wiki/5-Testing) for more Docker/ORCM discussion
+
+
 500 nodes are already defined in the config (node001 - node500), so just add more to the above argument to test more endpoints
 
 This setup includes the postgres server hosting the collect sensor data.  The image contains the postgres client, to query the data:
