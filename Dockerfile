@@ -26,7 +26,7 @@ RUN wget http://ftp.gnu.org/gnu/libtool/libtool-2.4.2.tar.xz && \
     cd .. && rm -rf libtool-2.4.2*
 
 RUN wget http://ipmiutil.sourceforge.net/FILES/archive/ipmiutil-2.9.4-1.src.rpm && \
-    rpmbuild --rebuild ipmiutil-2.9.4-1.src.rpm && \
+    rpmbuild --rebuild --define "_topdir /root/rpmbuild" ipmiutil-2.9.4-1.src.rpm && \
     rm -f ipmiutil-2.9.4* && \
     yum -y localinstall /root/rpmbuild/RPMS/x86_64/ipmiutil-2.9.4-1.el6.x86_64.rpm \
                         /root/rpmbuild/RPMS/x86_64/ipmiutil-devel-2.9.4-1.el6.x86_64.rpm
@@ -51,7 +51,7 @@ RUN yum localinstall -y http://yum.postgresql.org/9.3/redhat/rhel-6-x86_64/pgdg-
     yum install -y postgresql93-server postgresql93-odbc && \
     /etc/init.d/postgresql-9.3 initdb
 
-EXPOSE 53 55805 55820 5432
+EXPOSE 55805 55820 5432 12345 12346 12347 12348 12349 12350
 
 RUN perl -pi -e "s:<Path to the PostgreSQL ODBC driver>:$(rpm -ql postgresql93-odbc | grep psqlodbc.so):" orcm/contrib/database/psql_odbc_driver.ini && \
     odbcinst -i -d -f orcm/contrib/database/psql_odbc_driver.ini && \

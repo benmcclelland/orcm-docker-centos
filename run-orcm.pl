@@ -5,19 +5,20 @@ use warnings;
 use Getopt::Long;
 use Pod::Usage;
 
-our($conf, $image, $nodes);
-our($opt_nodb, $opt_clean, $opt_dryrun, $opt_dbcli, $opt_help, $opt_shell, $opt_nopull);
+our($conf, $image, $nodes, $home);
+our($opt_nodb, $opt_clean, $opt_dryrun, $opt_dbcli, $opt_help, $opt_shell, $opt_pull);
 
 GetOptions(
     "conf:s"  => \$conf,
     "image:s" => \$image,
     "nodes:s" => \$nodes,
+    "home:s"  => \$home,
     "nodb"    => \$opt_nodb,
     "dbcli"   => \$opt_dbcli,
     "clean"   => \$opt_clean,
     "dryrun"  => \$opt_dryrun,
     "shell"   => \$opt_shell,
-    "nopull"  => \$opt_nopull,
+    "pull"    => \$opt_pull,
     "help"    => \$opt_help, "h" => \$opt_help
 );
 
@@ -26,7 +27,7 @@ if ($opt_help) {
 }
 
 # defaults
-$image ||= "benmcclelland/orcm-centos";
+$image ||= "intel/orcm";
 our $docker = "/usr/bin/docker";
 my @args;
 
@@ -55,7 +56,7 @@ if ($opt_clean) {
 }
 
 # Pull latest image
-if (!$opt_nopull) {
+if ($opt_pull) {
     my $pullcmd = "$docker pull $image";
     @args = split(" ", $pullcmd);
     if($opt_dryrun) {
@@ -95,11 +96,16 @@ if (!$opt_nodb) {
     @dbconf = ("--link", "db:db");
 }
 
+my @homeconf;
+if ($home) {
+    @homeconf = ("-v", "$home:/home");
+}
+
 # SHELL
 if ($opt_shell) {
     my @dockershell;
     my $shellcmd = "/bin/bash";
-    @dockershell = ($docker, "run", "-it", "--rm", "--link", "master:master", @dbconf, @xmlconf, $image);
+    @dockershell = ($docker, "run", "-it", "--rm", "--link", "master:master", @homeconf, @dbconf, @xmlconf, $image);
     @args = (@dockershell, split(" ", $shellcmd));
 
     if($opt_dryrun) {
@@ -127,7 +133,7 @@ if (!$opt_nodb) {
 # start scheduler
 my @dockerscd;
 my $scdcmd = "/opt/open-rcm/bin/orcmsched";
-@dockerscd = ($docker, "run", "-d", "--name", "master", "-h", "master", @dbconf, @xmlconf, $image);
+@dockerscd = ($docker, "run", "-d", "--name", "master", "-h", "master", @homeconf, @dbconf, @xmlconf, $image);
 @args = (@dockerscd, split(" ", $scdcmd));
 
 if($opt_dryrun) {
@@ -146,7 +152,7 @@ if($opt_nodb) {
 } else {
     $aggcmd = "/opt/open-rcm/bin/orcmd -omca db_odbc_dsn orcmdb_psql -omca db_odbc_user orcmuser:orcmpassword -omca db_odbc_table data_sample -omca sensor heartbeat,sigar";
 }
-@dockeragg = ($docker, "run", "-d", "--name", "agg01", "-h", "agg01", @dbconf, "--link", "master:master", @xmlconf, $image);
+@dockeragg = ($docker, "run", "-d", "--name", "agg01", "-h", "agg01", @homeconf, @dbconf, "--link", "master:master", @xmlconf, $image);
 @args = (@dockeragg, split(" ", $aggcmd));
 
 if($opt_dryrun) {
@@ -168,9 +174,9 @@ if ($nodes) {
             $nodecmd = "/opt/open-rcm/bin/orcmd -omca sensor heartbeat,sigar";
         }
         if ($i == 1) {
-            @dockernode = ($docker, "run", "-d", "--name", $node, "-h", $node, "--link", "agg01:agg01", @xmlconf, $image);
+            @dockernode = ($docker, "run", "-d", "--name", $node, "-h", $node, "--link", "agg01:agg01", @homeconf, @xmlconf, $image);
         } else {
-            @dockernode = ($docker, "run", "-d", "--name", $node, "-h", $node, "--link", "agg01:agg01", "--link", "node001:node001", @xmlconf, $image);
+            @dockernode = ($docker, "run", "-d", "--name", $node, "-h", $node, "--link", "agg01:agg01", "--link", "node001:node001", @homeconf, @xmlconf, $image);
         }
         @args = (@dockernode, split(" ", $nodecmd));
 
@@ -198,15 +204,16 @@ optionally launch db, dbcli, and shell
 
 =head1 OPTIONS
 
- --conf      specifcy orcm-site.xml to bind into docker container
- --image     specify docker image
- --nodes [#] how many compute node containers to launch
- --nodb      disable database and db options
- --dbcli     run a container with the psql shell and connect to db
- --clean     stop and remove *ALL* containers
- --dryrun    only print commands that would be run, don't execute
- --shell     launch a container with a shell prompt
- --nopull    dont pull image
- --help|-h   this help
+ --conf  [conf] specifcy (abs path) orcm-site.xml to bind into docker container
+ --image [img]  specify docker image
+ --nodes [#]    how many compute node containers to launch
+ --home  [dir]  dir to mount as /home in containers
+ --nodb         disable database and db options
+ --dbcli        run a container with the psql shell and connect to db
+ --clean        stop and remove *ALL* containers
+ --dryrun       only print commands that would be run, don't execute
+ --shell        launch a container with a shell prompt
+ --pull         pull latest image
+ --help|-h      this help
 
 =cut
