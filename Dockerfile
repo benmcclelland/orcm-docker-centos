@@ -25,11 +25,16 @@ RUN wget http://ftp.gnu.org/gnu/libtool/libtool-2.4.2.tar.xz && \
     ./configure --prefix=/usr/local && make && make install && \
     cd .. && rm -rf libtool-2.4.2*
 
-RUN wget http://ipmiutil.sourceforge.net/FILES/archive/ipmiutil-2.9.4-1.src.rpm && \
-    rpmbuild --rebuild --define "_topdir /root/rpmbuild" ipmiutil-2.9.4-1.src.rpm && \
-    rm -f ipmiutil-2.9.4* && \
-    yum -y localinstall /root/rpmbuild/RPMS/x86_64/ipmiutil-2.9.4-1.el6.x86_64.rpm \
-                        /root/rpmbuild/RPMS/x86_64/ipmiutil-devel-2.9.4-1.el6.x86_64.rpm
+RUN wget http://ipmiutil.sourceforge.net/FILES/ipmiutil-2.9.5-1.src.rpm && \
+    rpm -hiv ./ipmiutil-2.9.5-1.src.rpm
+
+ADD ipmiutil.spec /root/rpmbuild/SPECS/ipmiutil.spec
+
+RUN rpmbuild -bb --clean --rmsource --rmspec /root/rpmbuild/SPECS/ipmiutil.spec && \
+    rm -f ipmiutil-2.9.5* && \
+    zypper --no-gpg-checks --non-interactive install /root/rpmbuild/RPMS/x86_64/ipmiutil-2.9.5-1.x86_64.rpm \
+                                                     /root/rpmbuild/RPMS/x86_64/ipmiutil-devel-2.9.5-1.x86_64.rpm && \
+    rm -rf /root/rpmbuild/*
 
 RUN git clone https://github.com/open-mpi/orcm.git && \
     cd orcm && \
