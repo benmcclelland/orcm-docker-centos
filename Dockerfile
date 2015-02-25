@@ -32,8 +32,8 @@ ADD ipmiutil.spec /root/rpmbuild/SPECS/ipmiutil.spec
 
 RUN rpmbuild -bb --clean --rmsource --rmspec /root/rpmbuild/SPECS/ipmiutil.spec && \
     rm -f ipmiutil-2.9.5* && \
-    yum localinstall -y /root/rpmbuild/RPMS/x86_64/ipmiutil-2.9.5-1.x86_64.rpm \
-                        /root/rpmbuild/RPMS/x86_64/ipmiutil-devel-2.9.5-1.x86_64.rpm && \
+    yum localinstall -y /root/rpmbuild/RPMS/x86_64/ipmiutil-2.9.5-1.el6.x86_64.rpm \
+                        /root/rpmbuild/RPMS/x86_64/ipmiutil-devel-2.9.5-1.el6.x86_64.rpm && \
     rm -rf /root/rpmbuild/*
 
 RUN git clone https://github.com/open-mpi/orcm.git && \
